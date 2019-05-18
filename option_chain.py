@@ -1,41 +1,38 @@
-import os
 import pickle
 import re
+import signal
+import sys
 import time
 
 from collections import OrderedDict
-from datetime import datetime
 from selenium.webdriver import Firefox
 from selenium.webdriver.firefox.options import Options
+from utils import *
 
 BNF_SYMBOL = "BANKNIFTY"
 NF_SYMBOL = "NIFTY"
 STRIKE_PRICE_INDEX = 11
-BNF_URL = "https://www.nseindia.com/live_market/dynaContent/live_watch/option_chain/optionKeys.jsp?symbolCode=-9999&symbol=BANKNIFTY&symbol=BANKNIFTY&instrument=OPTIDX&date=-&segmentLink=17&segmentLink=17"
-NF_URL = "https://www.nseindia.com/live_market/dynaContent/live_watch/option_chain/optionKeys.jsp?symbolCode=-10003&symbol=NIFTY&symbol=NIFTY&instrument=OPTIDX&date=-&segmentLink=17&segmentLink=17"
+OC_BASE_URL = "https://www.nseindia.com/live_market/dynaContent/live_watch/option_chain/optionKeys.jsp?segmentLink=17"
+INDEX_URL = OC_BASE_URL + "&instrument=OPTIDX&symbol={}"
+STOCK_URL = OC_BASE_URL + "&instrument=OPTSTK&symbol={}"
+MONTHLY_EXPIRY_SUFFIX = "&date={}"
 
 value_time_pattern = re.compile(".*Underlying [a-zA-Z]+: [A-Z]+ (.*)  As on (.*)")
-date_today = str(datetime.now().date())
-
-def create_dir_if_not_exist(path):
-    try:
-        os.makedirs(path)
-    except:
-        pass
+date_today = datetime.now().date()
 
 def parse_tr_for_elements(tr, tag_name="td"):
     sub_elements = tr.find_elements_by_tag_name(tag_name)
     return [tag.text for tag in sub_elements]
 
-def get_oc_for_symbol(symbol, browser):
-    print("Running for symbol: {}".format(symbol))
+def get_oc_for_symbol(symbol, browser, monthly=False):
+    print("Running {} for symbol: {}".format("monthly" if monthly else "weekly", symbol))
     browser.refresh()
     print("  Page loaded ...")
     trs = browser.find_elements_by_tag_name("tr")
     value, stime = value_time_pattern.findall(trs[0].text)[0]
     stime = str(datetime.strptime(stime, "%b %d, %Y %H:%M:%S %Z"))
 
-    filepath = "/home/sandipan/trading/data/{}/{}".format(symbol, date_today)
+    filepath = "{}/trool/data/{}/{}/{}".format(get_home_directory(), symbol, date_today, "monthly" if monthly else "weekly")
     if not os.path.exists(filepath):
         create_dir_if_not_exist(os.path.dirname(filepath))
         octable = OrderedDict()
@@ -89,27 +86,61 @@ def get_browser_for_url(url):
         browser.get(url)
     return browser
 
+def cleanup(signal=None, frame=None):
+    print("Closing open browser sessions before exit ...")
+    try:
+        bnf_weekly_browser.close()
+        nf_weekly_browser.close()
+        bnf_monthly_browser.close()
+        nf_monthly_browser.close()
+    except:
+        pass
+    sys.exit()
+
 def main():
     while True:
         now = datetime.now()
         if (now.hour == 15 and now.minute >= 35) or now.hour > 15:
             print("Market closed. Exiting.")
-            bnf_browser.close()
-            nf_browser.close()
             break
         try:
             print("Running at {}".format(now))
-            get_oc_for_symbol(BNF_SYMBOL, bnf_browser)
-            get_oc_for_symbol(NF_SYMBOL, nf_browser)
+            get_oc_for_symbol(BNF_SYMBOL, bnf_weekly_browser)
+            get_oc_for_symbol(NF_SYMBOL, nf_weekly_browser)
+
+            if not is_expiry_week:
+                get_oc_for_symbol(BNF_SYMBOL, bnf_monthly_browser, monthly=True)
+                get_oc_for_symbol(NF_SYMBOL, nf_monthly_browser, monthly=True)
         except Exception as e:
             print("Failed to fetch. Error: {}".format(e.message))
         print("Sleeping ...")
-        time.sleep(300)
+        time.sleep(240)
 
 if __name__ == "__main__":
-    print("Initing BNF Browser ...")
-    bnf_browser = get_browser_for_url(BNF_URL)
+    if is_weekend():
+        print("Markets don't open on a weekend. Get a life for yourself.")
+        sys.exit()
+    signal.signal(signal.SIGINT, cleanup)
+    print("Initing weekly BNF Browser ...")
+    bnf_weekly_browser = get_browser_for_url(INDEX_URL.format(BNF_SYMBOL))
 
-    print("Initing NF Browser ...")
-    nf_browser = get_browser_for_url(NF_URL)
+    print("Initing weekly NF Browser ...")
+    nf_weekly_browser = get_browser_for_url(INDEX_URL.format(NF_SYMBOL))
+
+    expiry_date = get_expiry_date()
+    is_expiry_week = False
+    if int(expiry_date[:2]) < date_today.day:
+        # This month's expiry date has passed. Should pick next month's.
+        expiry_date = get_expiry_date(date_today.year, date_today.month + 1)
+    elif (int(expiry_date[:2]) - date_today.day) <= 7:
+        # This is expiry week. No need to fetch for two separate dates.
+        print("Is expiry week. Will skip fetching monthly option chain.")
+        is_expiry_week = True
+
+    if not is_expiry_week:
+        print("Initing monthly BNF Browser ...")
+        bnf_monthly_browser = get_browser_for_url(INDEX_URL.format(BNF_SYMBOL) + MONTHLY_EXPIRY_SUFFIX.format(expiry_date))
+        print("Initing monthly NF Browser ...")
+        nf_monthly_browser = get_browser_for_url(INDEX_URL.format(NF_SYMBOL) + MONTHLY_EXPIRY_SUFFIX.format(expiry_date))
     main()
+    cleanup()
