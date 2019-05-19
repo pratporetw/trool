@@ -2,7 +2,6 @@ import calendar
 import os
 
 from datetime import datetime
-from string import upper
 
 def create_dir_if_not_exist(path):
     try:
@@ -19,7 +18,7 @@ def get_expiry_date(year=None, month=None):
         last_thursday = cal_month[-2].strip().split(' ')[3]
     except:
         last_thursday = cal_month[-3].strip().split(' ')[3]
-    month_name = upper(cal_month[0].strip().split(" ")[0][:3])
+    month_name = cal_month[0].strip().split(" ")[0][:3].upper()
     expiry_date = "{}{}{}".format(last_thursday, month_name, year)
     return expiry_date
 

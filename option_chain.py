@@ -16,6 +16,7 @@ OC_BASE_URL = "https://www.nseindia.com/live_market/dynaContent/live_watch/optio
 INDEX_URL = OC_BASE_URL + "&instrument=OPTIDX&symbol={}"
 STOCK_URL = OC_BASE_URL + "&instrument=OPTSTK&symbol={}"
 MONTHLY_EXPIRY_SUFFIX = "&date={}"
+INDIA_VIX_URL = "https://in.investing.com/indices/india-vix"
 
 value_time_pattern = re.compile(".*Underlying [a-zA-Z]+: [A-Z]+ (.*)  As on (.*)")
 date_today = datetime.now().date()
@@ -37,10 +38,10 @@ def get_oc_for_symbol(symbol, browser, monthly=False):
         create_dir_if_not_exist(os.path.dirname(filepath))
         octable = OrderedDict()
     else:
-        with open(filepath, "r") as ocfile:
+        with open(filepath, "rb") as ocfile:
             octable = pickle.load(ocfile)
 
-    octable[stime] = {"value": value, "oc": {}}
+    octable[stime] = {"value": value, "india_vix": india_vix_value, "oc": {}}
     for tr in trs[10:-7]:
         trdata = parse_tr_for_elements(tr)
         octable[stime]["oc"][int(float(trdata[STRIKE_PRICE_INDEX]))] = {
@@ -69,13 +70,12 @@ def get_oc_for_symbol(symbol, browser, monthly=False):
                 "AskQty": trdata[15]
             }
         }
-    with open(filepath, "w") as ocfile:
+    with open(filepath, "wb") as ocfile:
         pickle.dump(octable, ocfile)
 
 def get_browser_for_url(url):
     opts = Options()
-    opts.set_headless()
-    assert opts.headless
+    opts.headless = True
     try:
         browser = Firefox(options=opts)
         browser.get(url)
@@ -112,7 +112,7 @@ def main():
                 get_oc_for_symbol(BNF_SYMBOL, bnf_monthly_browser, monthly=True)
                 get_oc_for_symbol(NF_SYMBOL, nf_monthly_browser, monthly=True)
         except Exception as e:
-            print("Failed to fetch. Error: {}".format(e.message))
+            print("Failed to fetch. Error: {}".format(e))
         print("Sleeping ...")
         time.sleep(240)
 
@@ -142,5 +142,8 @@ if __name__ == "__main__":
         bnf_monthly_browser = get_browser_for_url(INDEX_URL.format(BNF_SYMBOL) + MONTHLY_EXPIRY_SUFFIX.format(expiry_date))
         print("Initing monthly NF Browser ...")
         nf_monthly_browser = get_browser_for_url(INDEX_URL.format(NF_SYMBOL) + MONTHLY_EXPIRY_SUFFIX.format(expiry_date))
+    print("Fetching value for india vix ...")
+    india_vix_browser = get_browser_for_url(INDIA_VIX_URL)
+    india_vix_value = india_vix_browser.find_element_by_id("last_last").text
     main()
     cleanup()
