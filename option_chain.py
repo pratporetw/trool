@@ -25,7 +25,7 @@ def parse_tr_for_elements(tr, tag_name="td"):
     sub_elements = tr.find_elements_by_tag_name(tag_name)
     return [tag.text for tag in sub_elements]
 
-def get_oc_for_symbol(symbol, browser, monthly=False):
+def get_oc_for_symbol(symbol, browser, india_vix_value, monthly=False):
     print("Running {} for symbol: {}".format("monthly" if monthly else "weekly", symbol))
     browser.refresh()
     print("  Page loaded ...")
@@ -97,20 +97,25 @@ def cleanup(signal=None, frame=None):
         pass
     sys.exit()
 
+def get_value_for_india_vix():
+    india_vix_browser.refresh()
+    return india_vix_browser.find_element_by_id("last_last").text
+
 def main():
     while True:
         now = datetime.now()
         if (now.hour == 15 and now.minute >= 35) or now.hour > 15:
             print("Market closed. Exiting.")
             break
+        india_vix_value = get_value_for_india_vix()
         try:
             print("Running at {}".format(now))
-            get_oc_for_symbol(BNF_SYMBOL, bnf_weekly_browser)
-            get_oc_for_symbol(NF_SYMBOL, nf_weekly_browser)
+            get_oc_for_symbol(BNF_SYMBOL, bnf_weekly_browser, india_vix_value)
+            get_oc_for_symbol(NF_SYMBOL, nf_weekly_browser, india_vix_value)
 
             if not is_expiry_week:
-                get_oc_for_symbol(BNF_SYMBOL, bnf_monthly_browser, monthly=True)
-                get_oc_for_symbol(NF_SYMBOL, nf_monthly_browser, monthly=True)
+                get_oc_for_symbol(BNF_SYMBOL, bnf_monthly_browser, india_vix_value, monthly=True)
+                get_oc_for_symbol(NF_SYMBOL, nf_monthly_browser, india_vix_value, monthly=True)
         except Exception as e:
             print("Failed to fetch. Error: {}".format(e))
         print("Sleeping ...")
@@ -144,6 +149,5 @@ if __name__ == "__main__":
         nf_monthly_browser = get_browser_for_url(INDEX_URL.format(NF_SYMBOL) + MONTHLY_EXPIRY_SUFFIX.format(expiry_date))
     print("Fetching value for india vix ...")
     india_vix_browser = get_browser_for_url(INDIA_VIX_URL)
-    india_vix_value = india_vix_browser.find_element_by_id("last_last").text
     main()
     cleanup()
