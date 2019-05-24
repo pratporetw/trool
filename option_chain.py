@@ -137,7 +137,7 @@ if __name__ == "__main__":
     if int(expiry_date[:2]) < date_today.day:
         # This month's expiry date has passed. Should pick next month's.
         expiry_date = get_expiry_date(date_today.year, date_today.month + 1)
-    elif (int(expiry_date[:2]) - date_today.day) <= 7:
+    elif (int(expiry_date[:2]) - date_today.day) < 7:
         # This is expiry week. No need to fetch for two separate dates.
         print("Is expiry week. Will skip fetching monthly option chain.")
         is_expiry_week = True
