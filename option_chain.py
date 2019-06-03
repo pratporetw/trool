@@ -25,7 +25,7 @@ def parse_tr_for_elements(tr, tag_name="td"):
     sub_elements = tr.find_elements_by_tag_name(tag_name)
     return [tag.text for tag in sub_elements]
 
-def get_oc_for_symbol(symbol, browser, india_vix_value, monthly=False):
+def get_oc_for_symbol(symbol, browser, india_vix_value, expiry_date, monthly=False):
     print("Running {} for symbol: {}".format("monthly" if monthly else "weekly", symbol))
     browser.refresh()
     print("  Page loaded ...")
@@ -33,7 +33,7 @@ def get_oc_for_symbol(symbol, browser, india_vix_value, monthly=False):
     value, stime = value_time_pattern.findall(trs[0].text)[0]
     stime = str(datetime.strptime(stime, "%b %d, %Y %H:%M:%S %Z"))
 
-    filepath = "{}/trool/data/{}/{}/{}".format(get_home_directory(), symbol, date_today, "monthly" if monthly else "weekly")
+    filepath = "{}/trool/data/{}/{}/{}".format(get_home_directory(), symbol, "monthly" if monthly else "weekly", expiry_date)
     if not os.path.exists(filepath):
         create_dir_if_not_exist(os.path.dirname(filepath))
         octable = OrderedDict()
@@ -93,6 +93,7 @@ def cleanup(signal=None, frame=None):
         nf_weekly_browser.close()
         bnf_monthly_browser.close()
         nf_monthly_browser.close()
+        india_vix_browser.close()
     except:
         pass
     sys.exit()
@@ -110,12 +111,12 @@ def main():
         india_vix_value = get_value_for_india_vix()
         try:
             print("Running at {}".format(now))
-            get_oc_for_symbol(BNF_SYMBOL, bnf_weekly_browser, india_vix_value)
-            get_oc_for_symbol(NF_SYMBOL, nf_weekly_browser, india_vix_value)
+            get_oc_for_symbol(BNF_SYMBOL, bnf_monthly_browser, india_vix_value, monthly_expiry_date, monthly=True)
+            get_oc_for_symbol(NF_SYMBOL, nf_monthly_browser, india_vix_value, monthly_expiry_date, monthly=True)
 
             if not is_expiry_week:
-                get_oc_for_symbol(BNF_SYMBOL, bnf_monthly_browser, india_vix_value, monthly=True)
-                get_oc_for_symbol(NF_SYMBOL, nf_monthly_browser, india_vix_value, monthly=True)
+                get_oc_for_symbol(BNF_SYMBOL, bnf_weekly_browser, india_vix_value, weekly_expiry_date)
+                get_oc_for_symbol(NF_SYMBOL, nf_weekly_browser, india_vix_value, weekly_expiry_date)
         except Exception as e:
             print("Failed to fetch. Error: {}".format(e))
         print("Sleeping ...")
@@ -126,27 +127,27 @@ if __name__ == "__main__":
         print("Markets don't open on a weekend. Get a life for yourself.")
         sys.exit()
     signal.signal(signal.SIGINT, cleanup)
-    print("Initing weekly BNF Browser ...")
-    bnf_weekly_browser = get_browser_for_url(INDEX_URL.format(BNF_SYMBOL))
-
-    print("Initing weekly NF Browser ...")
-    nf_weekly_browser = get_browser_for_url(INDEX_URL.format(NF_SYMBOL))
-
-    expiry_date = get_expiry_date()
+    monthly_expiry_date = get_expiry_date()
     is_expiry_week = False
-    if int(expiry_date[:2]) < date_today.day:
+    if int(monthly_expiry_date[:2]) < date_today.day:
         # This month's expiry date has passed. Should pick next month's.
-        expiry_date = get_expiry_date(date_today.year, date_today.month + 1)
-    elif (int(expiry_date[:2]) - date_today.day) < 7:
+        monthly_expiry_date = get_expiry_date(date_today.year, date_today.month + 1)
+    elif (int(monthly_expiry_date[:2]) - date_today.day) < 7:
         # This is expiry week. No need to fetch for two separate dates.
-        print("Is expiry week. Will skip fetching monthly option chain.")
+        print("Is expiry week. Will skip fetching weekly option chain.")
         is_expiry_week = True
 
+    print("Initing monthly BNF Browser ...")
+    bnf_monthly_browser = get_browser_for_url(INDEX_URL.format(BNF_SYMBOL) + MONTHLY_EXPIRY_SUFFIX.format(monthly_expiry_date))
+    print("Initing monthly NF Browser ...")
+    nf_monthly_browser = get_browser_for_url(INDEX_URL.format(NF_SYMBOL) + MONTHLY_EXPIRY_SUFFIX.format(monthly_expiry_date))
+
     if not is_expiry_week:
-        print("Initing monthly BNF Browser ...")
-        bnf_monthly_browser = get_browser_for_url(INDEX_URL.format(BNF_SYMBOL) + MONTHLY_EXPIRY_SUFFIX.format(expiry_date))
-        print("Initing monthly NF Browser ...")
-        nf_monthly_browser = get_browser_for_url(INDEX_URL.format(NF_SYMBOL) + MONTHLY_EXPIRY_SUFFIX.format(expiry_date))
+        print("Initing weekly BNF Browser ...")
+        bnf_weekly_browser = get_browser_for_url(INDEX_URL.format(BNF_SYMBOL))
+        print("Initing weekly NF Browser ...")
+        nf_weekly_browser = get_browser_for_url(INDEX_URL.format(NF_SYMBOL))
+        weekly_expiry_date = bnf_weekly_browser.find_element_by_id("date").text.split("\n")[1]
     print("Fetching value for india vix ...")
     india_vix_browser = get_browser_for_url(INDIA_VIX_URL)
     main()
