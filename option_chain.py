@@ -18,20 +18,46 @@ STOCK_URL = OC_BASE_URL + "&instrument=OPTSTK&symbol={}"
 MONTHLY_EXPIRY_SUFFIX = "&date={}"
 INDIA_VIX_URL = "https://in.investing.com/indices/india-vix"
 
-value_time_pattern = re.compile(".*Underlying [a-zA-Z]+: [A-Z]+ (.*)  As on (.*)")
+value_time_pattern = re.compile(".*Underlying [a-zA-Z]+: [A-Z]+ ([0-9.]+)  As on (.*)")
 date_today = datetime.now().date()
 
 def parse_tr_for_elements(tr, tag_name="td"):
     sub_elements = tr.find_elements_by_tag_name(tag_name)
     return [tag.text for tag in sub_elements]
 
+def compute_max_pain(trs):
+    print("  Computing Max Pain ...")
+    all_expiry_loss = {}
+    for index, exp_trdata in enumerate(trs):
+        exp_strike_price = int(float(exp_trdata[STRIKE_PRICE_INDEX]))
+        expiry_loss = 0
+        for trdata in trs:
+            strike_price = int(float(trdata[STRIKE_PRICE_INDEX]))
+            call_oi = int(trdata[1].replace(",", "").replace("-", "0"))
+            put_oi = int(trdata[21].replace(",", "").replace("-", "0"))
+            if strike_price == exp_strike_price:
+                continue
+            elif strike_price > exp_strike_price:
+                expiry_loss += abs(strike_price - exp_strike_price) * put_oi
+            else:
+                expiry_loss += abs(strike_price - exp_strike_price) * call_oi
+        all_expiry_loss[exp_strike_price] = expiry_loss
+    max_pain = min(list(all_expiry_loss.keys()), key=all_expiry_loss.get)
+    return max_pain
+
 def get_oc_for_symbol(symbol, browser, india_vix_value, expiry_date, monthly=False):
     print("Running {} for symbol: {}".format("monthly" if monthly else "weekly", symbol))
+    print("  Reloading page ...")
     browser.refresh()
-    print("  Page loaded ...")
+
     trs = browser.find_elements_by_tag_name("tr")
     value, stime = value_time_pattern.findall(trs[0].text)[0]
+    total_oi_line = trs[-2].text.split(" ")
+    pcr_ratio = float(total_oi_line[-2].replace(",", "")) / float(total_oi_line[1].replace(",", ""))
     stime = str(datetime.strptime(stime, "%b %d, %Y %H:%M:%S %Z"))
+
+    print("  Parsing oc table ...")
+    trs = [parse_tr_for_elements(tr) for tr in trs[10:-7]]
 
     filepath = "{}/trool/data/{}/{}/{}".format(get_home_directory(), symbol, "monthly" if monthly else "weekly", expiry_date)
     if not os.path.exists(filepath):
@@ -41,9 +67,13 @@ def get_oc_for_symbol(symbol, browser, india_vix_value, expiry_date, monthly=Fal
         with open(filepath, "rb") as ocfile:
             octable = pickle.load(ocfile)
 
-    octable[stime] = {"value": value, "india_vix": india_vix_value, "oc": {}}
-    for tr in trs[10:-7]:
-        trdata = parse_tr_for_elements(tr)
+    octable[stime] = {
+        "value": value,
+        "india_vix": india_vix_value,
+        "max_pain": compute_max_pain(trs),
+        "pcr": round(pcr_ratio, 2),
+        "oc": {}}
+    for trdata in trs:
         octable[stime]["oc"][int(float(trdata[STRIKE_PRICE_INDEX]))] = {
             "Call": {
                 "OI": trdata[1],
@@ -105,7 +135,7 @@ def get_value_for_india_vix():
 def main():
     while True:
         now = datetime.now()
-        if (now.hour == 15 and now.minute >= 35) or now.hour > 15:
+        if is_market_closed():
             print("Market closed. Exiting.")
             break
         india_vix_value = get_value_for_india_vix()
@@ -123,8 +153,8 @@ def main():
         time.sleep(240)
 
 if __name__ == "__main__":
-    if is_weekend():
-        print("Markets don't open on a weekend. Get a life for yourself.")
+    if is_market_closed():
+        print("Market closed. Exiting.")
         sys.exit()
     signal.signal(signal.SIGINT, cleanup)
     monthly_expiry_date = get_expiry_date()

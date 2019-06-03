@@ -29,6 +29,15 @@ def is_weekend():
         return True
     return False
 
+def are_off_market_hours():
+    now = datetime.now()
+    if (now.hour == 15 and now.minute >= 35) or now.hour > 15 or now.hour < 9:
+        return True
+    return False
+
+def is_market_closed():
+    return (is_weekend() or are_off_market_hours())
+
 def get_home_directory():
     return os.path.expanduser("~")
 
