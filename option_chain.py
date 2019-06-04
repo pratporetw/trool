@@ -152,7 +152,7 @@ def main():
         except Exception as e:
             print("Failed to fetch. Error: {}".format(e))
         print("Sleeping ...")
-        time.sleep(240)
+        time.sleep(180)
 
 if __name__ == "__main__":
     if is_market_closed():
