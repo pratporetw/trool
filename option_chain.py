@@ -26,7 +26,7 @@ def parse_tr_for_elements(tr, tag_name="td"):
     return [tag.text for tag in sub_elements]
 
 def compute_max_pain(trs):
-    print("  Computing Max Pain ...")
+    print("  Computing Max Pain ...", end="")
     all_expiry_loss = {}
     for index, exp_trdata in enumerate(trs):
         exp_strike_price = int(float(exp_trdata[STRIKE_PRICE_INDEX]))
@@ -43,6 +43,7 @@ def compute_max_pain(trs):
                 expiry_loss += abs(strike_price - exp_strike_price) * call_oi
         all_expiry_loss[exp_strike_price] = expiry_loss
     max_pain = min(list(all_expiry_loss.keys()), key=all_expiry_loss.get)
+    print(max_pain)
     return max_pain
 
 def get_oc_for_symbol(symbol, browser, india_vix_value, expiry_date, monthly=False):
@@ -55,6 +56,7 @@ def get_oc_for_symbol(symbol, browser, india_vix_value, expiry_date, monthly=Fal
     total_oi_line = trs[-2].text.split(" ")
     pcr_ratio = float(total_oi_line[-2].replace(",", "")) / float(total_oi_line[1].replace(",", ""))
     stime = str(datetime.strptime(stime, "%b %d, %Y %H:%M:%S %Z"))
+    print("  PCR: {}".format(pcr_ratio))
 
     print("  Parsing oc table ...")
     trs = [parse_tr_for_elements(tr) for tr in trs[10:-7]]
