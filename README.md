@@ -21,3 +21,5 @@ Setup:
     * sudo chmod 755 /usr/local/bin/geckodriver
 5. Install firefox if already not installed:
     * sudo apt-get install firefox
+
+Learnings and Documents: https://tinyurl.com/y55zph3w
