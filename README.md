@@ -27,4 +27,4 @@ Setup:
 6. Update timezone if deployed on EC2. By default it's UTC.
     * sudo timedatectl set-timezone Asia/Kolkata
 
-Learnings and Documents: https://tinyurl.com/y55zph3w
+Learnings and Notes: https://tinyurl.com/y55zph3w
