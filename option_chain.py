@@ -140,9 +140,9 @@ def main():
         if is_market_closed():
             print("Market closed. Exiting.")
             break
-        india_vix_value = get_value_for_india_vix()
         try:
             print("Running at {}".format(now))
+            india_vix_value = get_value_for_india_vix()
             get_oc_for_symbol(BNF_SYMBOL, bnf_monthly_browser, india_vix_value, monthly_expiry_date, monthly=True)
             get_oc_for_symbol(NF_SYMBOL, nf_monthly_browser, india_vix_value, monthly_expiry_date, monthly=True)
 
