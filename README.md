@@ -27,4 +27,12 @@ Setup:
 6. Update timezone if deployed on EC2. By default it's UTC.
     * sudo timedatectl set-timezone Asia/Kolkata
 
+Features:
+
+1. Collects and stores option chain data for Nifty and Banknifty index on daily basis.
+2. Computes PCR ratio and Max Pain at each pull to keep track of movement.
+3. Plots major data points like Implied Volatility, OI, Change in OI etc using Jupyter.
+4. Jupyter notebook to fetch most volatile Nifty 100 stocks. Can be used for Intraday picks.
+
 Learnings and Notes: https://tinyurl.com/y55zph3w
+
