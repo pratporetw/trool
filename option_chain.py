@@ -9,10 +9,10 @@ from selenium.webdriver import Firefox
 from selenium.webdriver.firefox.options import Options
 from utils import *
 
-BNF_SYMBOL = "BANKNIFTY"
-NF_SYMBOL = "NIFTY"
+BNF_SYMBOL = ""
+NF_SYMBOL = ""
 STRIKE_PRICE_INDEX = 11
-OC_BASE_URL = "https://www.nseindia.com/live_market/dynaContent/live_watch/option_chain/optionKeys.jsp?segmentLink=17"
+OC_BASE_URL = ""
 INDEX_URL = OC_BASE_URL + "&instrument=OPTIDX&symbol={}"
 STOCK_URL = OC_BASE_URL + "&instrument=OPTSTK&symbol={}"
 MONTHLY_EXPIRY_SUFFIX = "&date={}"
