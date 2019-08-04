@@ -1,6 +1,6 @@
 # trool
 
-A short tool to help with trading. Collects option chain data from nseinda.com using Selenium and firefox webdriver.
+A short tool to help with trading. Collects option chain data using Selenium and firefox webdriver.
 
 Tested on Ubuntu EC2.
 
